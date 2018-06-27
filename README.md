@@ -5,7 +5,24 @@
 This utility allows you to sniff LoRa networks with an [RNode](https://unsigned.io/projects/rnode/), and dump captured packets to the console or files.
 
 ```
-usage:
+usage: loramon [-h] [-C] [-W directory] [--freq Hz] [--bw Hz] [--txp dBm]
+               [--sf factor] [--cr rate]
+               [port]
+
+LoRa packet sniffer for RNode hardware.
+
+positional arguments:
+  port           Serial port where RNode is attached
+
+optional arguments:
+  -h, --help     show this help message and exit
+  -C, --console  Print captured packets to the console
+  -W directory   Write captured packets to a directory
+  --freq Hz      Frequency in Hz
+  --bw Hz        Bandwidth in Hze
+  --txp dBm      TX power in dBm
+  --sf factor    Spreading factor
+  --cr rate      Coding rate
 ```
 
 ## Dependencies
