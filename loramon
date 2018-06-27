@@ -526,10 +526,12 @@ def device_probe():
 	else:
 		raise IOError("Got invalid response while detecting device")
 
+console_output = False
 write_to_disk = False
 write_dir = None
 def packet_captured(data, rnode_instance):
-	RNS.log("["+str(rnode_instance.r_stat_rssi)+" dBm] ["+str(len(data))+" bytes]\t"+data.encode("string_escape"));
+	if console_output:
+		RNS.log("["+str(rnode_instance.r_stat_rssi)+" dBm] ["+str(len(data))+" bytes]\t"+data.encode("string_escape"));
 	if write_to_disk:
 		try:
 			filename = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")+".pkt"
@@ -566,10 +568,15 @@ if __name__ == "__main__":
 		parser.add_argument("port", nargs="?", default=None, help="Serial port where RNode is attached", type=str)
 		args = parser.parse_args()
 
+		if args.console:
+			console_output = True
+
 		if args.W:
 			if not os.path.isdir(args.W):
 				try:
 					os.mkdir(args.W)
+					write_to_disk = True
+					write_dir = args.W
 				except Exception as e:
 					RNS.log("Could not open or create specified directory")
 			else:
@@ -648,6 +655,9 @@ if __name__ == "__main__":
 			rnode.setPromiscuousMode(True)
 			sleep(0.5)
 			RNS.log("RNode in LoRa promiscuous mode and listening")
+
+			if not args.W and not args.console:
+				RNS.log("Warning! No output destination specified! You won't see any captured packets.")
 
 			while True:
 				raw_input()
