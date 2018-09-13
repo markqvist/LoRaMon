@@ -2,6 +2,7 @@
 from time import sleep
 import argparse
 import threading
+import ctypes
 import os
 import struct
 import datetime
@@ -275,7 +276,8 @@ class RNode():
 							else:
 								self.detected = False
 						elif (command == KISS.CMD_STAT_RSSI):
-							self.r_stat_rssi = ord(byte)-292
+							# self.r_stat_rssi = ord(byte)-292
+							self.r_stat_rssi = ctypes.c_int8(ord(byte) + self.rssi_offset).value
 						
 				else:
 					time_since_last = int(time.time()*1000) - last_read_ms
@@ -560,7 +562,7 @@ if __name__ == "__main__":
 		parser.add_argument("-C", "--console", action="store_true", help="Print captured packets to the console")
 		parser.add_argument("-W", action="store", metavar="directory", type=str, default=None, help="Write captured packets to a directory")
 		parser.add_argument("--freq", action="store", metavar="Hz", type=int, default=None, help="Frequency in Hz")
-		parser.add_argument("--bw", action="store", metavar="Hz", type=int, default=None, help="Bandwidth in Hze")
+		parser.add_argument("--bw", action="store", metavar="Hz", type=int, default=None, help="Bandwidth in Hz")
 		parser.add_argument("--txp", action="store", metavar="dBm", type=int, default=None, help="TX power in dBm")
 		parser.add_argument("--sf", action="store", metavar="factor", type=int, default=None, help="Spreading factor")
 		parser.add_argument("--cr", action="store", metavar="rate", type=int, default=None, help="Coding rate")
