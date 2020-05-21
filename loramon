@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!python3
 from time import sleep
 import argparse
 import threading
@@ -9,7 +9,7 @@ import datetime
 import time
 import math
 import traceback
-import imp
+import importlib
 
 rnode = None
 rnode_serial = None
@@ -30,61 +30,59 @@ class RNS():
 		delimiter = ":"
 		if not delimit:
 			delimiter = ""
-		hexrep = delimiter.join("{:02x}".format(ord(c)) for c in data)
+		hexrep = delimiter.join("{:02x}".format(c) for c in data)
 		return hexrep
 
 	@staticmethod
 	def prettyhexrep(data):
 		delimiter = ""
-		hexrep = "<"+delimiter.join("{:02x}".format(ord(c)) for c in data)+">"
+		hexrep = "<"+delimiter.join("{:02x}".format(c) for c in data)+">"
 		return hexrep
 
 class KISS():
-	FEND			= chr(0xC0)
-	FESC			= chr(0xDB)
-	TFEND			= chr(0xDC)
-	TFESC			= chr(0xDD)
-	
-	CMD_UNKNOWN		= chr(0xFE)
-	CMD_DATA		= chr(0x00)
-	CMD_FREQUENCY	= chr(0x01)
-	CMD_BANDWIDTH	= chr(0x02)
-	CMD_TXPOWER		= chr(0x03)
-	CMD_SF			= chr(0x04)
-	CMD_CR          = chr(0x05)
-	CMD_RADIO_STATE = chr(0x06)
-	CMD_RADIO_LOCK	= chr(0x07)
-	CMD_DETECT		= chr(0x08)
-	CMD_PROMISC     = chr(0x0E)
-	CMD_READY       = chr(0x0F)
-	CMD_STAT_RX		= chr(0x21)
-	CMD_STAT_TX		= chr(0x22)
-	CMD_STAT_RSSI	= chr(0x23)
-	CMD_STAT_SNR	= chr(0x24)
-	CMD_BLINK		= chr(0x30)
-	CMD_RANDOM		= chr(0x40)
-	CMD_FW_VERSION  = chr(0x50)
-	CMD_ROM_READ    = chr(0x51)
-	CMD_ROM_WRITE   = chr(0x52)
-	CMD_CONF_SAVE   = chr(0x53)
-	CMD_CONF_DELETE = chr(0x54)
+	FEND			= 0xC0
+	FESC			= 0xDB
+	TFEND			= 0xDC
+	TFESC			= 0xDD
 
-	DETECT_REQ      = chr(0x73)
-	DETECT_RESP     = chr(0x46)
-	
-	RADIO_STATE_OFF = chr(0x00)
-	RADIO_STATE_ON	= chr(0x01)
-	RADIO_STATE_ASK = chr(0xFF)
-	
-	CMD_ERROR		    = chr(0x90)
-	ERROR_INITRADIO     = chr(0x01)
-	ERROR_TXFAILED	    = chr(0x02)
-	ERROR_EEPROM_LOCKED	= chr(0x03)
+	CMD_UNKNOWN		= 0xFE
+	CMD_DATA		= 0x00
+	CMD_FREQUENCY	= 0x01
+	CMD_BANDWIDTH	= 0x02
+	CMD_TXPOWER		= 0x03
+	CMD_SF			= 0x04
+	CMD_CR          = 0x05
+	CMD_RADIO_STATE = 0x06
+	CMD_RADIO_LOCK	= 0x07
+	CMD_DETECT		= 0x08
+	CMD_PROMISC     = 0x0E
+	CMD_READY       = 0x0F
+	CMD_STAT_RX		= 0x21
+	CMD_STAT_TX		= 0x22
+	CMD_STAT_RSSI	= 0x23
+	CMD_STAT_SNR	= 0x24
+	CMD_BLINK		= 0x30
+	CMD_RANDOM		= 0x40
+	CMD_FW_VERSION  = 0x50
+	CMD_ROM_READ    = 0x51
+	CMD_ROM_WRITE   = 0x52
+	CMD_CONF_SAVE   = 0x53
+	CMD_CONF_DELETE = 0x54
+	DETECT_REQ      = 0x73
+	DETECT_RESP     = 0x46
+	RADIO_STATE_OFF = 0x00
+	RADIO_STATE_ON	= 0x01
+	RADIO_STATE_ASK = 0xFF
+
+	CMD_ERROR		    = 0x90
+	ERROR_INITRADIO     = 0x01
+	ERROR_TXFAILED	    = 0x02
+	ERROR_EEPROM_LOCKED	= 0x03
 
 	@staticmethod
 	def escape(data):
-		data = data.replace(chr(0xdb), chr(0xdb)+chr(0xdd))
-		data = data.replace(chr(0xc0), chr(0xdb)+chr(0xdc))
+		data = data.replace(bytes([0xdb]), bytes([0xdb, 0xdd]))
+		data = data.replace(bytes([0xc0]), bytes([0xdb, 0xdc]))
 		return data
 
 class ROM():
@@ -166,29 +164,30 @@ class RNode():
 			in_frame = False
 			escape = False
 			command = KISS.CMD_UNKNOWN
-			data_buffer = ""
-			command_buffer = ""
+			data_buffer = b""
+			command_buffer = b""
 			last_read_ms = int(time.time()*1000)
 
 			while rnode_serial.is_open:
 				if rnode_serial.in_waiting:
-					byte = rnode_serial.read(1)
+					byte = ord(rnode_serial.read(1))
 					last_read_ms = int(time.time()*1000)
+
 					if (in_frame and byte == KISS.FEND and command == KISS.CMD_DATA):
 						in_frame = False
 						self.processIncoming(data_buffer)
-						data_buffer = ""
-						command_buffer = ""
+						data_buffer = b""
+						command_buffer = b""
 					elif (in_frame and byte == KISS.FEND and command == KISS.CMD_ROM_READ):
 						self.eeprom = data_buffer
 						in_frame = False
-						data_buffer = ""
-						command_buffer = ""
+						data_buffer = b""
+						command_buffer = b""
 					elif (byte == KISS.FEND):
 						in_frame = True
 						command = KISS.CMD_UNKNOWN
-						data_buffer = ""
-						command_buffer = ""
+						data_buffer = b""
+						command_buffer = b""
 					elif (in_frame and len(data_buffer) < 512):
 						if (len(data_buffer) == 0 and command == KISS.CMD_UNKNOWN):
 							command = byte
@@ -202,7 +201,7 @@ class RNode():
 									if (byte == KISS.TFESC):
 										byte = KISS.FESC
 									escape = False
-								data_buffer = data_buffer+byte
+								data_buffer = data_buffer+bytes([byte])
 						elif (command == KISS.CMD_FREQUENCY):
 							if (byte == KISS.FESC):
 								escape = True
@@ -213,9 +212,9 @@ class RNode():
 									if (byte == KISS.TFESC):
 										byte = KISS.FESC
 									escape = False
-								command_buffer = command_buffer+byte
+								command_buffer = command_buffer+bytes([byte])
 								if (len(command_buffer) == 4):
-									self.r_frequency = ord(command_buffer[0]) << 24 | ord(command_buffer[1]) << 16 | ord(command_buffer[2]) << 8 | ord(command_buffer[3])
+									self.r_frequency = command_buffer[0] << 24 | command_buffer[1] << 16 | command_buffer[2] << 8 | command_buffer[3]
 									RNS.log("Radio reporting frequency is "+str(self.r_frequency/1000000.0)+" MHz")
 									self.updateBitrate()
 
@@ -229,9 +228,9 @@ class RNode():
 									if (byte == KISS.TFESC):
 										byte = KISS.FESC
 									escape = False
-								command_buffer = command_buffer+byte
+								command_buffer = command_buffer+bytes([byte])
 								if (len(command_buffer) == 4):
-									self.r_bandwidth = ord(command_buffer[0]) << 24 | ord(command_buffer[1]) << 16 | ord(command_buffer[2]) << 8 | ord(command_buffer[3])
+									self.r_bandwidth = command_buffer[0] << 24 | command_buffer[1] << 16 | command_buffer[2] << 8 | command_buffer[3]
 									RNS.log("Radio reporting bandwidth is "+str(self.r_bandwidth/1000.0)+" KHz")
 									self.updateBitrate()
 
@@ -245,27 +244,27 @@ class RNode():
 									if (byte == KISS.TFESC):
 										byte = KISS.FESC
 									escape = False
-								command_buffer = command_buffer+byte
+								command_buffer = command_buffer+bytes([byte])
 								if (len(command_buffer) == 2):
-									self.major_version = ord(command_buffer[0])
-									self.minor_version = ord(command_buffer[1])
+									self.major_version = command_buffer[0]
+									self.minor_version = command_buffer[1]
 									self.updateVersion()
 
 						elif (command == KISS.CMD_TXPOWER):
-							self.r_txpower = ord(byte)
+							self.r_txpower = byte
 							RNS.log("Radio reporting TX power is "+str(self.r_txpower)+" dBm")
 						elif (command == KISS.CMD_SF):
-							self.r_sf = ord(byte)
+							self.r_sf = byte
 							RNS.log("Radio reporting spreading factor is "+str(self.r_sf))
 							self.updateBitrate()
 						elif (command == KISS.CMD_CR):
-							self.r_cr = ord(byte)
+							self.r_cr = byte
 							RNS.log("Radio reporting coding rate is "+str(self.r_cr))
 							self.updateBitrate()
 						elif (command == KISS.CMD_RADIO_STATE):
-							self.r_state = ord(byte)
+							self.r_state = byte
 						elif (command == KISS.CMD_RADIO_LOCK):
-							self.r_lock = ord(byte)
+							self.r_lock = byte
 						elif (command == KISS.CMD_ERROR):
 							if (byte == KISS.ERROR_INITRADIO):
 								RNS.log(str(self)+" hardware initialisation error (code "+RNS.hexrep(byte)+")")
@@ -279,15 +278,15 @@ class RNode():
 							else:
 								self.detected = False
 						elif (command == KISS.CMD_STAT_RSSI):
-							self.r_stat_rssi = ctypes.c_int8(ord(byte)).value - self.rssi_offset
+							self.r_stat_rssi = ctypes.c_int8(byte).value - self.rssi_offset
 						elif (command == KISS.CMD_STAT_SNR):
-							self.r_stat_snr = ctypes.c_int8(ord(byte)).value * 0.25
+							self.r_stat_snr = ctypes.c_int8(byte).value * 0.25
 						
 				else:
 					time_since_last = int(time.time()*1000) - last_read_ms
 					if len(data_buffer) > 0 and time_since_last > self.timeout:
 						RNS.log(str(self)+" serial read timeout")
-						data_buffer = ""
+						data_buffer = b""
 						in_frame = False
 						command = KISS.CMD_UNKNOWN
 						escape = False
@@ -315,7 +314,7 @@ class RNode():
 		self.version = str(self.major_version)+"."+minstr
 
 	def detect(self):
-		kiss_command = KISS.FEND+KISS.CMD_DETECT+KISS.DETECT_REQ+KISS.FEND+KISS.CMD_FW_VERSION+chr(0x00)+KISS.FEND
+		kiss_command = bytes([KISS.FEND, KISS.CMD_DETECT, KISS.DETECT_REQ, KISS.FEND, KISS.CMD_FW_VERSION, 0x00, KISS.FEND])
 		written = rnode_serial.write(kiss_command)
 		if written != len(kiss_command):
 			raise IOError("An IO error occurred while configuring spreading factor for "+self(str))
@@ -333,9 +332,9 @@ class RNode():
 		c2 = self.frequency >> 16 & 0xFF
 		c3 = self.frequency >> 8 & 0xFF
 		c4 = self.frequency & 0xFF
-		data = KISS.escape(chr(c1)+chr(c2)+chr(c3)+chr(c4))
+		data = KISS.escape(bytes([c1])+bytes([c2])+bytes([c3])+bytes([c4]))
 
-		kiss_command = KISS.FEND+KISS.CMD_FREQUENCY+data+KISS.FEND
+		kiss_command = bytes([KISS.FEND])+bytes([KISS.CMD_FREQUENCY])+data+bytes([KISS.FEND])
 		written = self.serial.write(kiss_command)
 		if written != len(kiss_command):
 			raise IOError("An IO error occurred while configuring frequency for "+self(str))
@@ -345,165 +344,52 @@ class RNode():
 		c2 = self.bandwidth >> 16 & 0xFF
 		c3 = self.bandwidth >> 8 & 0xFF
 		c4 = self.bandwidth & 0xFF
-		data = KISS.escape(chr(c1)+chr(c2)+chr(c3)+chr(c4))
+		data = KISS.escape(bytes([c1])+bytes([c2])+bytes([c3])+bytes([c4]))
 
-		kiss_command = KISS.FEND+KISS.CMD_BANDWIDTH+data+KISS.FEND
+		kiss_command = bytes([KISS.FEND])+bytes([KISS.CMD_BANDWIDTH])+data+bytes([KISS.FEND])
 		written = self.serial.write(kiss_command)
 		if written != len(kiss_command):
-			raise IOError("An IO error occurred while configuring bandwidth")
+			raise IOError("An IO error occurred while configuring bandwidth for "+self(str))
 
 	def setTXPower(self):
-		txp = chr(self.txpower)
-		kiss_command = KISS.FEND+KISS.CMD_TXPOWER+txp+KISS.FEND
+		txp = bytes([self.txpower])
+
+		kiss_command = bytes([KISS.FEND])+bytes([KISS.CMD_TXPOWER])+txp+bytes([KISS.FEND])
 		written = self.serial.write(kiss_command)
 		if written != len(kiss_command):
-			raise IOError("An IO error occurred while configuring TX power")
+			raise IOError("An IO error occurred while configuring TX power for "+self(str))
 
 	def setSpreadingFactor(self):
-		sf = chr(self.sf)
-		kiss_command = KISS.FEND+KISS.CMD_SF+sf+KISS.FEND
+		sf = bytes([self.sf])
+
+		kiss_command = bytes([KISS.FEND])+bytes([KISS.CMD_SF])+sf+bytes([KISS.FEND])
 		written = self.serial.write(kiss_command)
 		if written != len(kiss_command):
-			raise IOError("An IO error occurred while configuring spreading factor")
+			raise IOError("An IO error occurred while configuring spreading factor for "+self(str))
 
 	def setCodingRate(self):
-		cr = chr(self.cr)
-		kiss_command = KISS.FEND+KISS.CMD_CR+cr+KISS.FEND
+		cr = bytes([self.cr])
+
+		kiss_command = bytes([KISS.FEND])+bytes([KISS.CMD_CR])+cr+bytes([KISS.FEND])
 		written = self.serial.write(kiss_command)
 		if written != len(kiss_command):
-			raise IOError("An IO error occurred while configuring coding rate")
+			raise IOError("An IO error occurred while configuring coding rate for "+self(str))
 
 	def setRadioState(self, state):
-		kiss_command = KISS.FEND+KISS.CMD_RADIO_STATE+state+KISS.FEND
+		kiss_command = bytes([KISS.FEND])+bytes([KISS.CMD_RADIO_STATE])+bytes([state])+bytes([KISS.FEND])
 		written = self.serial.write(kiss_command)
 		if written != len(kiss_command):
-			raise IOError("An IO error occurred while configuring radio state")
-
-	def setNormalMode(self):
-		kiss_command = KISS.FEND+KISS.CMD_CONF_DELETE+chr(0x00)+KISS.FEND
-		written = self.serial.write(kiss_command)
-		if written != len(kiss_command):
-			raise IOError("An IO error occurred while configuring device mode")
-
-	def setTNCMode(self):
-		kiss_command = KISS.FEND+KISS.CMD_CONF_SAVE+chr(0x00)+KISS.FEND
-		written = self.serial.write(kiss_command)
-		if written != len(kiss_command):
-			raise IOError("An IO error occurred while configuring device mode")
+			raise IOError("An IO error occurred while configuring radio state for "+self(str))
 
 	def setPromiscuousMode(self, state):
 		if state == True:
-			kiss_command = KISS.FEND+KISS.CMD_PROMISC+chr(0x01)+KISS.FEND
+			kiss_command = bytes([KISS.FEND, KISS.CMD_PROMISC, 0x01, KISS.FEND])
 		else:
-			kiss_command = KISS.FEND+KISS.CMD_PROMISC+chr(0x00)+KISS.FEND
+			kiss_command = bytes([KISS.FEND, KISS.CMD_PROMISC, 0x00, KISS.FEND])
 
 		written = self.serial.write(kiss_command)
 		if written != len(kiss_command):
 			raise IOError("An IO error occurred while configuring promiscuous mode for "+self(str))
-
-
-	def write_eeprom(self, addr, byte):
-		kiss_command = KISS.FEND+KISS.CMD_ROM_WRITE+KISS.escape(addr)+KISS.escape(byte)+KISS.FEND
-		written = self.serial.write(kiss_command)
-		if written != len(kiss_command):
-			raise IOError("An IO error occurred while writing EEPROM")
-
-
-	def download_eeprom(self):
-		kiss_command = KISS.FEND+KISS.CMD_ROM_READ+chr(0x00)+KISS.FEND
-		written = self.serial.write(kiss_command)
-		if written != len(kiss_command):
-			raise IOError("An IO error occurred while configuring radio state")
-
-		sleep(0.2)
-		if self.eeprom == None:
-			RNS.log("Could not download EEPROM from device. Is a valid firmware installed?")
-			exit()
-		else:
-			self.parse_eeprom()
-
-	def parse_eeprom(self):
-		if self.eeprom[ord(ROM.ADDR_INFO_LOCK)] == ROM.INFO_LOCK_BYTE:
-			from cryptography.hazmat.primitives import hashes
-			from cryptography.hazmat.backends import default_backend
-
-			self.provisioned = True
-
-			self.product = self.eeprom[ord(ROM.ADDR_PRODUCT)]
-			self.model = self.eeprom[ord(ROM.ADDR_MODEL)]
-			self.hw_rev = self.eeprom[ord(ROM.ADDR_HW_REV)]
-			self.serialno = "" + self.eeprom[ord(ROM.ADDR_SERIAL)] + self.eeprom[ord(ROM.ADDR_SERIAL)+1] + self.eeprom[ord(ROM.ADDR_SERIAL)+2] + self.eeprom[ord(ROM.ADDR_SERIAL)+3]
-			self.made = "" + self.eeprom[ord(ROM.ADDR_MADE)] + self.eeprom[ord(ROM.ADDR_MADE)+1] + self.eeprom[ord(ROM.ADDR_MADE)+2] + self.eeprom[ord(ROM.ADDR_MADE)+3]
-			self.checksum = ""
-
-
-			self.min_freq = ranges[ord(self.model)][0]
-			self.max_freq = ranges[ord(self.model)][1]
-			self.max_output = ranges[ord(self.model)][2]
-
-			try:
-				self.min_freq = ranges[ord(self.model)][0]
-				self.max_freq = ranges[ord(self.model)][1]
-				self.max_output = ranges[ord(self.model)][2]
-			except Exception as e:
-				RNS.log("Exception")
-				RNS.log(str(e))
-				self.min_freq = 0
-				self.max_freq = 0
-				self.max_output = 0
-
-			for i in range(0,16):
-				self.checksum = self.checksum+self.eeprom[ord(ROM.ADDR_CHKSUM)+i]
-
-			self.signature = ""
-			for i in range(0,128):
-				self.signature = self.signature+self.eeprom[ord(ROM.ADDR_SIGNATURE)+i]
-
-			checksummed_info = self.product+self.model+self.hw_rev+self.serialno+self.made
-			digest = hashes.Hash(hashes.MD5(), backend=default_backend())
-			digest.update(checksummed_info)
-			checksum = digest.finalize()
-
-			if self.checksum != checksum:
-				self.provisioned = False
-				RNS.log("EEPROM checksum mismatch")
-				exit()
-			else:
-				RNS.log("EEPROM checksum correct")
-				from cryptography.hazmat.primitives.serialization import load_der_public_key
-				from cryptography.hazmat.primitives.serialization import load_der_private_key
-				from cryptography.hazmat.primitives.asymmetric import padding
-				for known in known_keys:
-					vendor = known[0]
-					public_hexrep = known[1]
-					public_bytes = public_hexrep.decode("hex")
-					public_key = load_der_public_key(public_bytes, backend=default_backend())
-					try:
-						public_key.verify(
-							self.signature,
-							self.checksum,
-							padding.PSS(
-								mgf=padding.MGF1(hashes.SHA256()),
-								salt_length=padding.PSS.MAX_LENGTH
-							),
-							hashes.SHA256())
-						RNS.log("Board signature validated")
-						self.signature_valid = True
-						self.vendor = vendor
-					except Exception as e:
-						RNS.log("Board signature validation failed")
-
-			if self.eeprom[ord(ROM.ADDR_CONF_OK)] == ROM.CONF_OK_BYTE:
-				self.configured = True
-				self.conf_sf = ord(self.eeprom[ord(ROM.ADDR_CONF_SF)])
-				self.conf_cr = ord(self.eeprom[ord(ROM.ADDR_CONF_CR)])
-				self.conf_txpower = ord(self.eeprom[ord(ROM.ADDR_CONF_TXP)])
-				self.conf_frequency = ord(self.eeprom[ord(ROM.ADDR_CONF_FREQ)]) << 24 | ord(self.eeprom[ord(ROM.ADDR_CONF_FREQ)+1]) << 16 | ord(self.eeprom[ord(ROM.ADDR_CONF_FREQ)+2]) << 8 | ord(self.eeprom[ord(ROM.ADDR_CONF_FREQ)+3])
-				self.conf_bandwidth = ord(self.eeprom[ord(ROM.ADDR_CONF_BW)]) << 24 | ord(self.eeprom[ord(ROM.ADDR_CONF_BW)+1]) << 16 | ord(self.eeprom[ord(ROM.ADDR_CONF_BW)+2]) << 8 | ord(self.eeprom[ord(ROM.ADDR_CONF_BW)+3])
-			else:
-				self.configured = False
-		else:
-			self.provisioned = False
 
 def device_probe():
 	sleep(2.5)
@@ -521,7 +407,7 @@ write_to_disk = False
 write_dir = None
 def packet_captured(data, rnode_instance):
 	if console_output:
-		RNS.log("["+str(rnode_instance.r_stat_rssi)+" dBm] [SNR "+str(rnode_instance.r_stat_snr)+" dB] ["+str(len(data))+" bytes]\t"+data.encode("string_escape"));
+		RNS.log("["+str(rnode_instance.r_stat_rssi)+" dBm] [SNR "+str(rnode_instance.r_stat_snr)+" dB] ["+str(len(data))+" bytes]\t"+str(data));
 	if write_to_disk:
 		try:
 			filename = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")+".pkt"
@@ -535,11 +421,12 @@ def packet_captured(data, rnode_instance):
 
 if __name__ == "__main__":
 	try:
-		imp.find_module("serial")
+		if not importlib.util.find_spec("serial"):
+			raise ImportError("Serial module could not be found")
 	except ImportError:
 		print("")
 		print("RNode Config Utility needs pyserial to work.")
-		print("You can install it with: pip install pyserial")
+		print("You can install it with: pip3 install pyserial")
 		print("")
 		exit()
 
@@ -614,15 +501,15 @@ if __name__ == "__main__":
 			if args.freq:
 				rnode.frequency = args.freq
 			else:
-				print "Frequency in Hz:\t",
-				rnode.frequency = int(raw_input())
+				print("Frequency in Hz:\t", end=' ')
+				rnode.frequency = int(input())
 
 
 			if args.bw:
 				rnode.bandwidth = args.bw
 			else:
-				print "Bandwidth in Hz:\t",
-				rnode.bandwidth = int(raw_input())
+				print("Bandwidth in Hz:\t", end=' ')
+				rnode.bandwidth = int(input())
 
 			if args.txp:
 				rnode.txpower = args.txp
@@ -632,14 +519,14 @@ if __name__ == "__main__":
 			if args.sf:
 				rnode.sf = args.sf
 			else:
-				print "Spreading factor:\t",
-				rnode.sf = int(raw_input())
+				print("Spreading factor:\t", end=' ')
+				rnode.sf = int(input())
 
 			if args.cr:
 				rnode.cr = args.cr
 			else:
-				print "Coding rate:\t\t",
-				rnode.cr = int(raw_input())
+				print("Coding rate:\t\t", end=' ')
+				rnode.cr = int(input())
 
 			rnode.initRadio()
 			rnode.setPromiscuousMode(True)
@@ -650,7 +537,7 @@ if __name__ == "__main__":
 				RNS.log("Warning! No output destination specified! You won't see any captured packets.")
 
 			while True:
-				raw_input()
+				input()
 		else:
 			print("")
 			parser.print_help()
