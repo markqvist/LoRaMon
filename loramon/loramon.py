@@ -272,7 +272,6 @@ class RNode():
 						elif (command == KISS.CMD_STAT_RSSI):
 							self.r_stat_rssi = byte - self.rssi_offset
 						elif (command == KISS.CMD_STAT_SNR):
-							# self.r_stat_snr = ctypes.c_int8(byte).value * 0.25
 							self.r_stat_snr = int.from_bytes(bytes([byte]), byteorder="big", signed=True) * 0.25
 						
 				else:
