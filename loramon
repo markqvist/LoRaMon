@@ -60,6 +60,7 @@ class KISS():
 	CMD_STAT_RX		= chr(0x21)
 	CMD_STAT_TX		= chr(0x22)
 	CMD_STAT_RSSI	= chr(0x23)
+	CMD_STAT_SNR	= chr(0x24)
 	CMD_BLINK		= chr(0x30)
 	CMD_RANDOM		= chr(0x40)
 	CMD_FW_VERSION  = chr(0x50)
@@ -121,7 +122,9 @@ class RNode():
 		self.r_state     = None
 		self.r_lock      = None
 		self.r_stat_rssi = 0
-		self.rssi_offset = 292
+		self.r_stat_snr  = 0
+		self.rssi_offset = 157
+		self.snr_offset  = 128
 
 		self.sf = None
 		self.cr = None
@@ -276,8 +279,11 @@ class RNode():
 							else:
 								self.detected = False
 						elif (command == KISS.CMD_STAT_RSSI):
-							# self.r_stat_rssi = ord(byte)-292
-							self.r_stat_rssi = ctypes.c_int8(ord(byte) + self.rssi_offset).value
+							RNS.log("RSSI BYTE: "+RNS.hexrep(byte))
+							self.r_stat_rssi = ctypes.c_int8(ord(byte)).value - self.rssi_offset
+						elif (command == KISS.CMD_STAT_SNR):
+							RNS.log("SNR BYTE: "+RNS.hexrep(byte))
+							self.r_stat_snr = ctypes.c_int8(ord(byte)).value * 0.25
 						
 				else:
 					time_since_last = int(time.time()*1000) - last_read_ms
@@ -460,9 +466,6 @@ class RNode():
 			digest.update(checksummed_info)
 			checksum = digest.finalize()
 
-			#RNS.log("EEPROM checksum: "+RNS.hexrep(self.checksum))
-			#RNS.log("Calculated checksum: "+RNS.hexrep(checksum))
-
 			if self.checksum != checksum:
 				self.provisioned = False
 				RNS.log("EEPROM checksum mismatch")
@@ -504,19 +507,6 @@ class RNode():
 		else:
 			self.provisioned = False
 
-
-	# TODO: remove this
-	def test(self):
-		self.frequency = 868000000
-		self.bandwidth = 125000
-		self.txpower   = 2
-		self.sf        = 7
-		self.cr        = 5
-		self.initRadio()
-		self.setRadioState(KISS.RADIO_STATE_OFF)
-
-
-
 def device_probe():
 	sleep(2.5)
 	rnode.detect()
@@ -533,7 +523,7 @@ write_to_disk = False
 write_dir = None
 def packet_captured(data, rnode_instance):
 	if console_output:
-		RNS.log("["+str(rnode_instance.r_stat_rssi)+" dBm] ["+str(len(data))+" bytes]\t"+data.encode("string_escape"));
+		RNS.log("["+str(rnode_instance.r_stat_rssi)+" dBm] [SNR "+str(rnode_instance.r_stat_snr)+" dB] ["+str(len(data))+" bytes]\t"+data.encode("string_escape"));
 	if write_to_disk:
 		try:
 			filename = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")+".pkt"
