@@ -49,14 +49,14 @@ chmod a+x loramon
 ./loramon --help
 ```
 
-## Examples
+## Usage Examples
 
 ### Dump to console
 
 Listens on a specified frequency and displays captured packets in the console.
 
 ```sh
-./loramon /dev/ttyUSB0 --freq 868000000 --bw 125000 --sf 7 --cr 5 -C
+loramon /dev/ttyUSB0 --freq 868000000 --bw 125000 --sf 7 --cr 5 -C
 ```
 
 ### Dump to console and disk
@@ -64,5 +64,5 @@ Listens on a specified frequency and displays captured packets in the console.
 Like above, but also writes all captured packets individually to a specified directory.
 
 ```sh
-./loramon /dev/ttyUSB0 --freq 868000000 --bw 125000 --sf 7 --cr 5 -C -W capturedir
+loramon /dev/ttyUSB0 --freq 868000000 --bw 125000 --sf 7 --cr 5 -C -W capturedir
 ```
