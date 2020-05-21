@@ -1,4 +1,3 @@
-#!python3
 from time import sleep
 import argparse
 import threading
@@ -10,12 +9,6 @@ import time
 import math
 import traceback
 import importlib
-
-rnode = None
-rnode_serial = None
-rnode_baudrate = 115200
-known_keys = [["unsigned.io", "30819f300d06092a864886f70d010101050003818d0030818902818100e5d46084e445595376bf7efd9c6ccf19d39abbc59afdb763207e4ff68b8d00ebffb63847aa2fe6dd10783d3ea63b55ac66f71ad885c20e223709f0d51ed5c6c0d0b093be9e1d165bb8a483a548b67a3f7a1e4580f50e75b306593fa6067ae259d3e297717bd7ff8c8f5b07f2bed89929a9a0321026cf3699524db98e2d18fb2d020300ff39"]]
-ranges = { 0xA4: [410000000, 525000000, 14], 0xA9: [820000000, 1020000000, 17] }
 
 class RNS():
 	@staticmethod
@@ -122,7 +115,6 @@ class RNode():
 		self.r_stat_rssi = 0
 		self.r_stat_snr  = 0
 		self.rssi_offset = 157
-		self.snr_offset  = 128
 
 		self.sf = None
 		self.cr = None
@@ -168,9 +160,9 @@ class RNode():
 			command_buffer = b""
 			last_read_ms = int(time.time()*1000)
 
-			while rnode_serial.is_open:
-				if rnode_serial.in_waiting:
-					byte = ord(rnode_serial.read(1))
+			while self.serial.is_open:
+				if self.serial.in_waiting:
+					byte = ord(self.serial.read(1))
 					last_read_ms = int(time.time()*1000)
 
 					if (in_frame and byte == KISS.FEND and command == KISS.CMD_DATA):
@@ -278,9 +270,10 @@ class RNode():
 							else:
 								self.detected = False
 						elif (command == KISS.CMD_STAT_RSSI):
-							self.r_stat_rssi = ctypes.c_int8(byte).value - self.rssi_offset
+							self.r_stat_rssi = byte - self.rssi_offset
 						elif (command == KISS.CMD_STAT_SNR):
-							self.r_stat_snr = ctypes.c_int8(byte).value * 0.25
+							# self.r_stat_snr = ctypes.c_int8(byte).value * 0.25
+							self.r_stat_snr = int.from_bytes(bytes([byte]), byteorder="big", signed=True) * 0.25
 						
 				else:
 					time_since_last = int(time.time()*1000) - last_read_ms
@@ -315,7 +308,7 @@ class RNode():
 
 	def detect(self):
 		kiss_command = bytes([KISS.FEND, KISS.CMD_DETECT, KISS.DETECT_REQ, KISS.FEND, KISS.CMD_FW_VERSION, 0x00, KISS.FEND])
-		written = rnode_serial.write(kiss_command)
+		written = self.serial.write(kiss_command)
 		if written != len(kiss_command):
 			raise IOError("An IO error occurred while configuring spreading factor for "+self(str))
 
@@ -391,7 +384,7 @@ class RNode():
 		if written != len(kiss_command):
 			raise IOError("An IO error occurred while configuring promiscuous mode for "+self(str))
 
-def device_probe():
+def device_probe(rnode):
 	sleep(2.5)
 	rnode.detect()
 	sleep(0.1)
@@ -402,16 +395,13 @@ def device_probe():
 	else:
 		raise IOError("Got invalid response while detecting device")
 
-console_output = False
-write_to_disk = False
-write_dir = None
 def packet_captured(data, rnode_instance):
-	if console_output:
+	if rnode_instance.console_output:
 		RNS.log("["+str(rnode_instance.r_stat_rssi)+" dBm] [SNR "+str(rnode_instance.r_stat_snr)+" dB] ["+str(len(data))+" bytes]\t"+str(data));
-	if write_to_disk:
+	if rnode_instance.write_to_disk:
 		try:
 			filename = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")+".pkt"
-			file = open(write_dir+"/"+filename, "w")
+			file = open(rnode_instance.write_dir+"/"+filename, "w")
 			file.write(data)
 			file.close()
 		except Exception as e:
@@ -419,7 +409,7 @@ def packet_captured(data, rnode_instance):
 			os._exit(255)
 
 
-if __name__ == "__main__":
+def main():
 	try:
 		if not importlib.util.find_spec("serial"):
 			raise ImportError("Serial module could not be found")
@@ -445,6 +435,10 @@ if __name__ == "__main__":
 		parser.add_argument("port", nargs="?", default=None, help="Serial port where RNode is attached", type=str)
 		args = parser.parse_args()
 
+		console_output = False
+		write_to_disk = False
+		write_dir = None
+
 		if args.console:
 			console_output = True
 
@@ -462,6 +456,10 @@ if __name__ == "__main__":
 
 		if args.port:
 			RNS.log("Opening serial port "+args.port+"...")
+			rnode = None
+			rnode_serial = None
+			rnode_baudrate = 115200
+
 			try:
 				rnode_serial = serial.Serial(
 					port = args.port,
@@ -483,12 +481,16 @@ if __name__ == "__main__":
 
 			rnode = RNode(rnode_serial)
 			rnode.callback = packet_captured
+			rnode.console_output = console_output
+			rnode.write_to_disk = write_to_disk
+			rnode.write_dir = write_dir
+
 			thread = threading.Thread(target=rnode.readLoop)
 			thread.setDaemon(True)
 			thread.start()
 
 			try:
-				device_probe()
+				device_probe(rnode)
 			except Exception as e:
 				RNS.log("Serial port opened, but RNode did not respond.")
 				print(e)
@@ -547,3 +549,6 @@ if __name__ == "__main__":
 	except KeyboardInterrupt:
 		print("")
 		exit()
+
+if __name__ == "__main__":
+	main()
