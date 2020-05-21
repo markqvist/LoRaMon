@@ -279,10 +279,8 @@ class RNode():
 							else:
 								self.detected = False
 						elif (command == KISS.CMD_STAT_RSSI):
-							RNS.log("RSSI BYTE: "+RNS.hexrep(byte))
 							self.r_stat_rssi = ctypes.c_int8(ord(byte)).value - self.rssi_offset
 						elif (command == KISS.CMD_STAT_SNR):
-							RNS.log("SNR BYTE: "+RNS.hexrep(byte))
 							self.r_stat_snr = ctypes.c_int8(ord(byte)).value * 0.25
 						
 				else:

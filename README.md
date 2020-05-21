@@ -4,7 +4,7 @@
 
 This utility allows you to sniff LoRa networks with an [RNode](https://unsigned.io/projects/rnode/), and dump captured packets to the console or files.
 
-```
+```sh
 usage: loramon [-h] [-C] [-W directory] [--freq Hz] [--bw Hz] [--txp dBm]
                [--sf factor] [--cr rate]
                [port]
@@ -25,20 +25,24 @@ optional arguments:
   --cr rate      Coding rate
 ```
 
-## Dependencies
-
-The config utility requires Python 2.7 and pyserial. To install:
-
-```
-sudo apt install python python-pip
-sudo pip install pyserial
-```
-
 ## Installation
 
-Just clone or download this repository, place wherever you'd like and run loramon (remember to set executable permissions):
+If you already have Python3 and pip installed, you can easily install LoRaMon through pip:
 
+```sh
+pip3 install loramon
 ```
+
+If you want to install directly from this repository, first install the dependencies:
+
+```sh
+sudo apt install python3 python3-pip
+sudo pip3 install pyserial
+```
+
+And then clone the repository and make LoRaMon executable:
+
+```sh
 git clone https://github.com/markqvist/LoRaMon.git
 cd LoRaMon
 chmod a+x loramon
@@ -51,7 +55,7 @@ chmod a+x loramon
 
 Listens on a specified frequency and displays captured packets in the console.
 
-```
+```sh
 ./loramon /dev/ttyUSB0 --freq 868000000 --bw 125000 --sf 7 --cr 5 -C
 ```
 
@@ -59,6 +63,6 @@ Listens on a specified frequency and displays captured packets in the console.
 
 Like above, but also writes all captured packets individually to a specified directory.
 
-```
+```sh
 ./loramon /dev/ttyUSB0 --freq 868000000 --bw 125000 --sf 7 --cr 5 -C -W capturedir
 ```
