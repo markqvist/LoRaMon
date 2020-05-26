@@ -8,7 +8,7 @@ import datetime
 import time
 import math
 import traceback
-import importlib
+from importlib import util
 
 class RNS():
 	@staticmethod
@@ -410,7 +410,7 @@ def packet_captured(data, rnode_instance):
 
 def main():
 	try:
-		if not importlib.util.find_spec("serial"):
+		if not util.find_spec("serial"):
 			raise ImportError("Serial module could not be found")
 	except ImportError:
 		print("")
