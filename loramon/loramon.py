@@ -400,7 +400,7 @@ def packet_captured(data, rnode_instance):
 	if rnode_instance.write_to_disk:
 		try:
 			filename = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")+".pkt"
-			file = open(rnode_instance.write_dir+"/"+filename, "w")
+			file = open(rnode_instance.write_dir+"/"+filename, "wb")
 			file.write(data)
 			file.close()
 		except Exception as e:
