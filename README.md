@@ -66,3 +66,11 @@ Like above, but also writes all captured packets individually to a specified dir
 ```sh
 loramon /dev/ttyUSB0 --freq 868000000 --bw 125000 --sf 7 --cr 5 -C -W capturedir
 ```
+
+### Sniff implicit header mode packets
+
+If you want to sniff LoRa packets with implicit header mode, use the --implicit option along with the length in bytes of the expected packet. This mode needs an RNode with a firmware version of at least 1.17.
+
+```sh
+loramon /dev/ttyUSB0 --freq 868000000 --bw 125000 --sf 7 --cr 5 -C -W capturedir --implicit 12
+```

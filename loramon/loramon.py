@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 from time import sleep
 import argparse
 import threading
@@ -48,6 +49,7 @@ class KISS():
 	CMD_RADIO_STATE = 0x06
 	CMD_RADIO_LOCK	= 0x07
 	CMD_DETECT		= 0x08
+	CMD_IMPLICIT    = 0x09
 	CMD_PROMISC     = 0x0E
 	CMD_READY       = 0x0F
 	CMD_STAT_RX		= 0x21
@@ -114,6 +116,8 @@ class RNode():
 		self.r_lock      = None
 		self.r_stat_rssi = 0
 		self.r_stat_snr  = 0
+		self.r_implicit_length = 0
+
 		self.rssi_offset = 157
 
 		self.sf = None
@@ -121,6 +125,7 @@ class RNode():
 		self.txpower = None
 		self.frequency = None
 		self.bandwidth = None
+		self.implicit_length = 0
 
 		self.detected = None
 
@@ -253,6 +258,10 @@ class RNode():
 							self.r_cr = byte
 							RNS.log("Radio reporting coding rate is "+str(self.r_cr))
 							self.updateBitrate()
+						elif (command == KISS.CMD_IMPLICIT):
+							self.r_implicit_length = byte
+							if self.r_implicit_length != 0:
+								RNS.log("Radio in implicit header mode, listening for packets with a length of "+str(self.r_implicit_length)+" bytes")
 						elif (command == KISS.CMD_RADIO_STATE):
 							self.r_state = byte
 						elif (command == KISS.CMD_RADIO_LOCK):
@@ -317,6 +326,7 @@ class RNode():
 		self.setTXPower()
 		self.setSpreadingFactor()
 		self.setCodingRate()
+		self.setImplicitLength()
 		self.setRadioState(KISS.RADIO_STATE_ON)
 
 	def setFrequency(self):
@@ -366,6 +376,15 @@ class RNode():
 		written = self.serial.write(kiss_command)
 		if written != len(kiss_command):
 			raise IOError("An IO error occurred while configuring coding rate for "+self(str))
+
+	def setImplicitLength(self):
+		if self.implicit_length != 0:
+			length = KISS.escape(bytes([self.implicit_length]))
+
+			kiss_command = bytes([KISS.FEND])+bytes([KISS.CMD_IMPLICIT])+length+bytes([KISS.FEND])
+			written = self.serial.write(kiss_command)
+			if written != len(kiss_command):
+				raise IOError("An IO error occurred while configuring implicit header mode for "+self(str))
 
 	def setRadioState(self, state):
 		kiss_command = bytes([KISS.FEND])+bytes([KISS.CMD_RADIO_STATE])+bytes([state])+bytes([KISS.FEND])
@@ -430,6 +449,7 @@ def main():
 		parser.add_argument("--txp", action="store", metavar="dBm", type=int, default=None, help="TX power in dBm")
 		parser.add_argument("--sf", action="store", metavar="factor", type=int, default=None, help="Spreading factor")
 		parser.add_argument("--cr", action="store", metavar="rate", type=int, default=None, help="Coding rate")
+		parser.add_argument("--implicit", action="store", metavar="length", type=int, default=None, help="Packet length in implicit header mode")
 
 		parser.add_argument("port", nargs="?", default=None, help="Serial port where RNode is attached", type=str)
 		args = parser.parse_args()
@@ -528,6 +548,11 @@ def main():
 			else:
 				print("Coding rate:\t\t", end=' ')
 				rnode.cr = int(input())
+
+			if args.implicit:
+				rnode.implicit_length = args.implicit
+			else:
+				rnode.implicit_length = 0
 
 			rnode.initRadio()
 			rnode.setPromiscuousMode(True)
