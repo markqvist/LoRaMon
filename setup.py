@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="loramon",
-    version="0.9.5",
+    version="0.9.6",
     author="Mark Qvist",
     author_email="mark@unsigned.io",
     description="LoRa packet sniffer for RNode hardware",
