@@ -415,7 +415,14 @@ def device_probe(rnode):
 
 def packet_captured(data, rnode_instance):
 	if rnode_instance.console_output:
-		RNS.log("["+str(rnode_instance.r_stat_rssi)+" dBm] [SNR "+str(rnode_instance.r_stat_snr)+" dB] ["+str(len(data))+" bytes]\t"+str(data));
+		if rnode_instance.print_hex:
+			if len(data) == 1:
+				data = [data]
+			datastring = "\n"+RNS.hexrep(data)+"\n"
+		else:
+			datastring = str(data)
+
+		RNS.log("["+str(rnode_instance.r_stat_rssi)+" dBm] [SNR "+str(rnode_instance.r_stat_snr)+" dB] ["+str(len(data))+" bytes]\t"+datastring);
 	if rnode_instance.write_to_disk:
 		try:
 			filename = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")+".pkt"
@@ -443,6 +450,7 @@ def main():
 	try:
 		parser = argparse.ArgumentParser(description="LoRa packet sniffer for RNode hardware.")
 		parser.add_argument("-C", "--console", action="store_true", help="Print captured packets to the console")
+		parser.add_argument("-H", "--hex", action="store_true", help="Print out packets as hexadecimal")
 		parser.add_argument("-W", action="store", metavar="directory", type=str, default=None, help="Write captured packets to a directory")
 		parser.add_argument("--freq", action="store", metavar="Hz", type=int, default=None, help="Frequency in Hz")
 		parser.add_argument("--bw", action="store", metavar="Hz", type=int, default=None, help="Bandwidth in Hz")
@@ -553,6 +561,11 @@ def main():
 				rnode.implicit_length = args.implicit
 			else:
 				rnode.implicit_length = 0
+
+			if args.hex:
+				rnode.print_hex = True
+			else:
+				rnode.print_hex = False
 
 			rnode.initRadio()
 			rnode.setPromiscuousMode(True)
