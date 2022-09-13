@@ -540,10 +540,10 @@ def main():
 				print("Bandwidth in Hz:\t", end=' ')
 				rnode.bandwidth = int(input())
 
-			if args.txp:
+			if args.txp >= 0 and args.txp <= 17:
 				rnode.txpower = args.txp
 			else:
-				rnode.txpower = 2
+				rnode.txpower = 0
 
 			if args.sf:
 				rnode.sf = args.sf
