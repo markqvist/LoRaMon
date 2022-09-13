@@ -33,6 +33,8 @@ If you already have Python3 and pip installed, you can easily install LoRaMon th
 pip3 install loramon
 ```
 
+On Arch Linux it is also possible to install using the `loramon` package from the [AUR](https://aur.archlinux.org/packages/loramon).
+
 If you want to install directly from this repository, first install the dependencies:
 
 ```sh
